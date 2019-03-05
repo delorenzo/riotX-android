@@ -16,6 +16,8 @@
 
 package im.vector.riotredesign.features.home.room.detail
 
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.LayoutInflater
@@ -26,11 +28,15 @@ import androidx.recyclerview.widget.RecyclerView
 import com.airbnb.epoxy.EpoxyVisibilityTracker
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.fragmentViewModel
+import com.otaliastudios.autocomplete.Autocomplete
+import com.otaliastudios.autocomplete.CharPolicy
 import im.vector.matrix.android.api.session.room.timeline.TimelineEvent
 import im.vector.riotredesign.R
 import im.vector.riotredesign.core.epoxy.LayoutManagerStateRestorer
 import im.vector.riotredesign.core.platform.RiotFragment
 import im.vector.riotredesign.core.platform.ToolbarConfigurable
+import im.vector.riotredesign.features.autocomplete.command.AutocompleteCommandPresenter
+import im.vector.riotredesign.features.autocomplete.command.Command
 import im.vector.riotredesign.features.home.AvatarRenderer
 import im.vector.riotredesign.features.home.HomeModule
 import im.vector.riotredesign.features.home.HomePermalinkHandler
@@ -41,6 +47,7 @@ import org.koin.android.ext.android.inject
 import org.koin.android.scope.ext.android.bindScope
 import org.koin.android.scope.ext.android.getOrCreateScope
 import org.koin.core.parameter.parametersOf
+
 
 @Parcelize
 data class RoomDetailArgs(
@@ -62,6 +69,7 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
 
     private val roomDetailViewModel: RoomDetailViewModel by fragmentViewModel()
     private val timelineEventController: TimelineEventController by inject { parametersOf(this) }
+    private val autocompleteCommandPresenter: AutocompleteCommandPresenter by inject { parametersOf(this) }
     private val homePermalinkHandler: HomePermalinkHandler by inject()
 
     private lateinit var scrollOnNewMessageCallback: ScrollOnNewMessageCallback
@@ -75,7 +83,7 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
         bindScope(getOrCreateScope(HomeModule.ROOM_DETAIL_SCOPE))
         setupRecyclerView()
         setupToolbar()
-        setupSendButton()
+        setupComposer()
         roomDetailViewModel.subscribe { renderState(it) }
     }
 
@@ -109,7 +117,16 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
         timelineEventController.callback = this
     }
 
-    private fun setupSendButton() {
+    private fun setupComposer() {
+        val elevation = 6f
+        val backgroundDrawable = ColorDrawable(Color.WHITE)
+        Autocomplete.on<Command>(composerEditText)
+                .with(CharPolicy('/', false))
+                .with(autocompleteCommandPresenter)
+                .with(elevation)
+                .with(backgroundDrawable)
+                .build()
+
         sendButton.setOnClickListener {
             val textMessage = composerEditText.text.toString()
             if (textMessage.isNotBlank()) {

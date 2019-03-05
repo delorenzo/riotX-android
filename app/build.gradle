@@ -88,6 +88,8 @@ dependencies {
     implementation 'com.jakewharton.rxrelay2:rxrelay:2.1.0'
     implementation 'com.jakewharton.rxbinding2:rxbinding:2.2.0'
 
+    implementation 'com.otaliastudios:autocomplete:1.1.0'
+
     implementation("com.airbnb.android:epoxy:$epoxy_version")
     kapt "com.airbnb.android:epoxy-processor:$epoxy_version"
     implementation 'com.airbnb.android:mvrx:0.7.0'
