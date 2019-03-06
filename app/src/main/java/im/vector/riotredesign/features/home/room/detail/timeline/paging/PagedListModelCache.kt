@@ -18,6 +18,7 @@ package im.vector.riotredesign.features.home.room.detail.timeline.paging
 
 import android.annotation.SuppressLint
 import android.os.Handler
+import android.os.Looper
 import androidx.paging.AsyncPagedListDiffer
 import androidx.paging.PagedList
 import androidx.recyclerview.widget.AsyncDifferConfig
@@ -46,6 +47,7 @@ class PagedListModelCache<T>(
     // LoadAround with accuracy
     private val modelCache = linkedMapOf<EpoxyModel<*>, Int>()
     private var isCacheStale = AtomicBoolean(true)
+    private var inSubmitList = AtomicBoolean(false)
 
     /**
      * Tracks the last accessed position so that we can report it back to the paged list when models are built.
@@ -57,21 +59,25 @@ class PagedListModelCache<T>(
      */
     private val updateCallback = object : ListUpdateCallback {
         override fun onChanged(position: Int, count: Int, payload: Any?) {
+            assertUpdateCallbacksAllowed()
             invalidate()
             rebuildCallback()
         }
 
         override fun onMoved(fromPosition: Int, toPosition: Int) {
+            assertUpdateCallbacksAllowed()
             invalidate()
             rebuildCallback()
         }
 
         override fun onInserted(position: Int, count: Int) {
+            assertUpdateCallbacksAllowed()
             invalidate()
             rebuildCallback()
         }
 
         override fun onRemoved(position: Int, count: Int) {
+            assertUpdateCallbacksAllowed()
             invalidate()
             rebuildCallback()
         }
@@ -79,7 +85,7 @@ class PagedListModelCache<T>(
 
     @SuppressLint("RestrictedApi")
     private val asyncDiffer = AsyncPagedListDiffer<T>(
-            updateCallback,
+            SynchronizedListUpdateCallback(modelBuildingHandler, updateCallback),
             AsyncDifferConfig.Builder<T>(
                     itemDiffCallback
             ).also { builder ->
@@ -94,8 +100,30 @@ class PagedListModelCache<T>(
             }.build()
     )
 
+    /**
+     * Changes to the paged list must happen on the same thread as changes to the model cache to
+     * ensure they stay in sync.
+     *
+     * We can't force this to happen, and must instead rely on user's configuration, but we can alert
+     * when it is not configured correctly.
+     *
+     * An exception is thrown if the callback happens due to a new paged list being submitted, which can
+     * trigger a synchronous callback if the list goes from null to non null, or vice versa.
+     *
+     * Synchronization on [submitList] and other model cache access methods prevent issues when
+     * that happens.
+     */
+    private fun assertUpdateCallbacksAllowed() {
+        require(inSubmitList.get() || Looper.myLooper() == modelBuildingHandler.looper) {
+            "The notify executor for your PagedList must use the same thread as the model building handler set in PagedListEpoxyController.modelBuildingHandler"
+        }
+    }
+
+    @Synchronized
     fun submitList(pagedList: PagedList<T>?) {
+        inSubmitList.set(true)
         asyncDiffer.submitList(pagedList)
+        inSubmitList.set(false)
     }
 
     fun getModels(): List<EpoxyModel<*>> {
