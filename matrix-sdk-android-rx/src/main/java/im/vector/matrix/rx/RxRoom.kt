@@ -17,6 +17,7 @@
 package im.vector.matrix.rx
 
 import im.vector.matrix.android.api.session.room.Room
+import im.vector.matrix.android.api.session.room.model.RoomMember
 import im.vector.matrix.android.api.session.room.model.RoomSummary
 import im.vector.matrix.android.api.session.room.timeline.TimelineData
 import io.reactivex.Observable
@@ -29,6 +30,10 @@ class RxRoom(private val room: Room) {
 
     fun timeline(eventId: String? = null): Observable<TimelineData> {
         return room.timeline(eventId).asObservable()
+    }
+
+    fun liveRoomMemberIds(): Observable<List<String>>{
+        return room.getRoomMemberIdsLive().asObservable()
     }
 
 }

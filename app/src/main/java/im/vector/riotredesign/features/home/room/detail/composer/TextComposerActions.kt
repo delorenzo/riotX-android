@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-package im.vector.riotredesign.features.home.room.detail
+package im.vector.riotredesign.features.home.room.detail.composer
 
-import im.vector.matrix.android.api.session.room.timeline.TimelineEvent
-
-sealed class RoomDetailActions {
-
-    data class SendMessage(val text: String) : RoomDetailActions()
-    object IsDisplayed : RoomDetailActions()
-    data class EventDisplayed(val event: TimelineEvent, val index: Int) : RoomDetailActions()
+sealed class TextComposerActions {
+    data class QueryUsers(val query: CharSequence?) : TextComposerActions()
 }

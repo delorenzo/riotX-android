@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package im.vector.riotredesign.features.home.room.detail
+package im.vector.riotredesign.features.home.room.detail.composer
 
-import im.vector.matrix.android.api.session.room.timeline.TimelineEvent
+import com.airbnb.mvrx.Async
+import com.airbnb.mvrx.MvRxState
+import com.airbnb.mvrx.Uninitialized
+import im.vector.matrix.android.api.session.user.model.User
+import im.vector.riotredesign.features.home.room.detail.RoomDetailArgs
 
-sealed class RoomDetailActions {
 
-    data class SendMessage(val text: String) : RoomDetailActions()
-    object IsDisplayed : RoomDetailActions()
-    data class EventDisplayed(val event: TimelineEvent, val index: Int) : RoomDetailActions()
+data class TextComposerViewState(val roomId: String,
+                                 val asyncUsers: Async<List<User>> = Uninitialized
+) : MvRxState {
+
+    constructor(args: RoomDetailArgs) : this(roomId = args.roomId)
+
 }

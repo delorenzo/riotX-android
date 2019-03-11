@@ -14,32 +14,31 @@
  * limitations under the License.
  */
 
-package im.vector.riotredesign.features.autocomplete.command
+package im.vector.riotredesign.features.autocomplete.user
 
+import android.widget.ImageView
 import android.widget.TextView
 import com.airbnb.epoxy.EpoxyAttribute
 import com.airbnb.epoxy.EpoxyModelClass
 import im.vector.riotredesign.R
 import im.vector.riotredesign.core.epoxy.RiotEpoxyHolder
 import im.vector.riotredesign.core.epoxy.RiotEpoxyModel
+import im.vector.riotredesign.features.home.AvatarRenderer
 
-@EpoxyModelClass(layout = R.layout.item_autocomplete_command)
-abstract class AutocompleteCommandItem : RiotEpoxyModel<AutocompleteCommandItem.Holder>() {
+@EpoxyModelClass(layout = R.layout.item_autocomplete_user)
+abstract class AutocompleteUserItem : RiotEpoxyModel<AutocompleteUserItem.Holder>() {
 
-    @EpoxyAttribute var name: CharSequence? = null
-    @EpoxyAttribute var parameters: CharSequence? = null
-    @EpoxyAttribute var description: CharSequence? = null
+    @EpoxyAttribute var name: String? = null
+    @EpoxyAttribute var avatarUrl: String? = null
 
     override fun bind(holder: Holder) {
         holder.nameView.text = name
-        holder.parametersView.text = parameters
-        holder.descriptionView.text = description
+        AvatarRenderer.render(avatarUrl, name, holder.avatarImageView)
     }
 
     class Holder : RiotEpoxyHolder() {
-        val nameView by bind<TextView>(R.id.commandName)
-        val parametersView by bind<TextView>(R.id.commandParameter)
-        val descriptionView by bind<TextView>(R.id.commandDescription)
+        val nameView by bind<TextView>(R.id.userAutocompleteName)
+        val avatarImageView by bind<ImageView>(R.id.userAutocompleteAvatar)
     }
 
 }

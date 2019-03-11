@@ -16,8 +16,6 @@
 
 package im.vector.riotredesign.features.home.room.detail
 
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.LayoutInflater
@@ -28,18 +26,19 @@ import androidx.recyclerview.widget.RecyclerView
 import com.airbnb.epoxy.EpoxyVisibilityTracker
 import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.fragmentViewModel
-import com.otaliastudios.autocomplete.Autocomplete
-import com.otaliastudios.autocomplete.CharPolicy
 import im.vector.matrix.android.api.session.room.timeline.TimelineEvent
 import im.vector.riotredesign.R
 import im.vector.riotredesign.core.epoxy.LayoutManagerStateRestorer
 import im.vector.riotredesign.core.platform.RiotFragment
 import im.vector.riotredesign.core.platform.ToolbarConfigurable
 import im.vector.riotredesign.features.autocomplete.command.AutocompleteCommandPresenter
-import im.vector.riotredesign.features.autocomplete.command.Command
+import im.vector.riotredesign.features.autocomplete.user.AutocompleteUserPresenter
 import im.vector.riotredesign.features.home.AvatarRenderer
 import im.vector.riotredesign.features.home.HomeModule
 import im.vector.riotredesign.features.home.HomePermalinkHandler
+import im.vector.riotredesign.features.home.room.detail.composer.TextComposerActions
+import im.vector.riotredesign.features.home.room.detail.composer.TextComposerViewModel
+import im.vector.riotredesign.features.home.room.detail.composer.TextComposerViewState
 import im.vector.riotredesign.features.home.room.detail.timeline.TimelineEventController
 import kotlinx.android.parcel.Parcelize
 import kotlinx.android.synthetic.main.fragment_room_detail.*
@@ -56,7 +55,7 @@ data class RoomDetailArgs(
 ) : Parcelable
 
 
-class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
+class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback, AutocompleteUserPresenter.Callback {
 
     companion object {
 
@@ -68,8 +67,10 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
     }
 
     private val roomDetailViewModel: RoomDetailViewModel by fragmentViewModel()
+    private val textComposerViewModel: TextComposerViewModel by fragmentViewModel()
     private val timelineEventController: TimelineEventController by inject { parametersOf(this) }
     private val autocompleteCommandPresenter: AutocompleteCommandPresenter by inject { parametersOf(this) }
+    private val autocompleteUserPresenter: AutocompleteUserPresenter by inject { parametersOf(this) }
     private val homePermalinkHandler: HomePermalinkHandler by inject()
 
     private lateinit var scrollOnNewMessageCallback: ScrollOnNewMessageCallback
@@ -85,6 +86,7 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
         setupToolbar()
         setupComposer()
         roomDetailViewModel.subscribe { renderState(it) }
+        textComposerViewModel.subscribe { renderTextComposerState(it) }
     }
 
     override fun onResume() {
@@ -118,7 +120,8 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
     }
 
     private fun setupComposer() {
-        val elevation = 6f
+        // TODO enable that when ready. Out of scope at the moment!
+        /*val elevation = 6f
         val backgroundDrawable = ColorDrawable(Color.WHITE)
         Autocomplete.on<Command>(composerEditText)
                 .with(CharPolicy('/', false))
@@ -127,6 +130,15 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
                 .with(backgroundDrawable)
                 .build()
 
+        autocompleteUserPresenter.callback = this
+        Autocomplete.on<User>(composerEditText)
+                .with(CharPolicy('@', false))
+                .with(autocompleteUserPresenter)
+                .with(elevation)
+                .with(backgroundDrawable)
+                .build()
+
+        */
         sendButton.setOnClickListener {
             val textMessage = composerEditText.text.toString()
             if (textMessage.isNotBlank()) {
@@ -168,6 +180,10 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
         }
     }
 
+    private fun renderTextComposerState(state: TextComposerViewState) {
+        autocompleteUserPresenter.render(state.asyncUsers)
+    }
+
     // TimelineEventController.Callback ************************************************************
 
     override fun onUrlClicked(url: String) {
@@ -176,6 +192,12 @@ class RoomDetailFragment : RiotFragment(), TimelineEventController.Callback {
 
     override fun onEventVisible(event: TimelineEvent, index: Int) {
         roomDetailViewModel.process(RoomDetailActions.EventDisplayed(event, index))
+    }
+
+    // AutocompleteUserPresenter.Callback
+
+    override fun onQueryUsers(query: CharSequence?) {
+        textComposerViewModel.process(TextComposerActions.QueryUsers(query))
     }
 
 }
