@@ -26,6 +26,7 @@ import com.airbnb.epoxy.EpoxyModel
 import com.airbnb.epoxy.VisibilityState
 import im.vector.matrix.android.api.session.room.timeline.Timeline
 import im.vector.matrix.android.api.session.room.timeline.TimelineEvent
+import im.vector.riotredesign.core.epoxy.LoadingItemModel_
 import im.vector.riotredesign.core.epoxy.RiotEpoxyModel
 import im.vector.riotredesign.core.extensions.localDateTime
 import im.vector.riotredesign.features.home.room.detail.timeline.factory.TimelineItemFactory
@@ -39,18 +40,16 @@ class TimelineEventController(private val dateFormatter: TimelineDateFormatter,
                               private val timelineItemFactory: TimelineItemFactory,
                               private val timelineMediaSizeProvider: TimelineMediaSizeProvider
 ) : EpoxyController(
-        EpoxyAsyncUtil.getAsyncBackgroundHandler(),
-        EpoxyAsyncUtil.getAsyncBackgroundHandler()
+        BACKGROUND_HANDLER,
+        BACKGROUND_HANDLER
 ), Timeline.Listener {
 
     private val modelCache = arrayListOf<List<EpoxyModel<*>>>()
     private var currentSnapshot: List<TimelineEvent> = emptyList()
 
-    override fun onUpdated(snapshot: List<TimelineEvent>) {
-        submitSnapshot(snapshot)
-    }
-
     private val listUpdateCallback = object : ListUpdateCallback {
+
+        @Synchronized
         override fun onChanged(position: Int, count: Int, payload: Any?) {
             (position until (position + count)).forEach {
                 modelCache[it] = emptyList()
@@ -62,7 +61,8 @@ class TimelineEventController(private val dateFormatter: TimelineDateFormatter,
             //no-op
         }
 
-        override fun onInserted(position: Int, count: Int) {
+        @Synchronized
+        override fun onInserted(position: Int, count: Int) = synchronized(modelCache) {
             if (modelCache.isNotEmpty() && position == modelCache.size) {
                 modelCache[position - 1] = emptyList()
             }
@@ -78,18 +78,17 @@ class TimelineEventController(private val dateFormatter: TimelineDateFormatter,
 
     }
 
-    private var isLoadingForward: Boolean = false
-    private var isLoadingBackward: Boolean = false
-    private var hasReachedEnd: Boolean = true
-
     private var timeline: Timeline? = null
     var callback: Callback? = null
+
+    init {
+        requestModelBuild()
+    }
 
     fun setTimeline(timeline: Timeline?) {
         if (this.timeline != timeline) {
             this.timeline = timeline
             this.timeline?.listener = this
-            submitSnapshot(timeline?.snapshot() ?: emptyList())
         }
     }
 
@@ -99,9 +98,25 @@ class TimelineEventController(private val dateFormatter: TimelineDateFormatter,
     }
 
     override fun buildModels() {
+        LoadingItemModel_()
+                .id("forward_loading_item")
+                .addWhen(Timeline.Direction.FORWARDS)
+
         add(getModels())
+
+        LoadingItemModel_()
+                .id("backward_loading_item")
+                .addWhen(Timeline.Direction.BACKWARDS)
     }
 
+    private fun LoadingItemModel_.addWhen(direction: Timeline.Direction) {
+        val shouldAdd = timeline?.let {
+            it.hasMoreToLoad(direction) || !it.hasReachedEnd(direction)
+        } ?: false
+        addIf(shouldAdd, this@TimelineEventController)
+    }
+
+    @Synchronized
     private fun getModels(): List<EpoxyModel<*>> {
         (0 until modelCache.size).forEach { position ->
             if (modelCache[position].isEmpty()) {
@@ -133,8 +148,14 @@ class TimelineEventController(private val dateFormatter: TimelineDateFormatter,
         return epoxyModels
     }
 
+    // Timeline.LISTENER ***************************************************************************
+
+    override fun onUpdated(snapshot: List<TimelineEvent>) {
+        submitSnapshot(snapshot)
+    }
+
     private fun submitSnapshot(newSnapshot: List<TimelineEvent>) {
-        EpoxyAsyncUtil.getAsyncBackgroundHandler().post {
+        BACKGROUND_HANDLER.post {
             val diffCallback = TimelineEventDiffUtilCallback(currentSnapshot, newSnapshot)
             currentSnapshot = newSnapshot
             val diffResult = DiffUtil.calculateDiff(diffCallback)
@@ -142,10 +163,15 @@ class TimelineEventController(private val dateFormatter: TimelineDateFormatter,
         }
     }
 
+
     interface Callback {
         fun onEventVisible(event: TimelineEvent)
         fun onUrlClicked(url: String)
         fun onMediaClicked(mediaData: MediaContentRenderer.Data, view: View)
+    }
+
+    companion object {
+        private val BACKGROUND_HANDLER = EpoxyAsyncUtil.createHandler(EpoxyAsyncUtil.buildBackgroundLooper("timeline_controller"), false)
     }
 
 }
